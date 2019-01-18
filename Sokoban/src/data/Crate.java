@@ -6,18 +6,18 @@ import javafx.scene.shape.Box;
 import javafx.scene.transform.Translate;
 import main.Main;
 
-public class Wall extends Block {
+public class Crate extends Block {
 
-	public Wall(GridCoordinates gridCoordinates, Translate translate) {
+	public Crate(GridCoordinates gridCoordinates, Translate translate) {
 		super(gridCoordinates);
 		model = new Box(Main.SIZE, Main.SIZE, Main.SIZE);
-		model.setMaterial(new PhongMaterial(Color.BROWN));
+		model.setMaterial(new PhongMaterial(new Color(0.4, 0.15, 0.15, 1.0)));
 		position(translate);
 	}
 
 	@Override
 	public boolean pushable() {
-		return false;
+		return true;
 	}
 
 }

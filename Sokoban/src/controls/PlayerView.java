@@ -26,6 +26,7 @@ public class PlayerView implements EventHandler<MouseEvent>{
 	private Rotate rotationX;
 	private Rotate rotationY;
 
+	private boolean on;
 	private Robot robot;
 
 	public Rotate getRotationX() {
@@ -43,7 +44,9 @@ public class PlayerView implements EventHandler<MouseEvent>{
 
 	private void centerCursor() {
 		calculateCenter();
+		on = false;
 		robot.mouseMove(centerX, centerY);
+		on = true;
 	}
 
 	public void addRotations(Camera camera) {
@@ -61,6 +64,7 @@ public class PlayerView implements EventHandler<MouseEvent>{
 			System.err.println("Fatal error.");
 		}
 		centerCursor();
+		on = true;
 	}
 
 	private void updateAngleX(double diffX) {
@@ -83,6 +87,9 @@ public class PlayerView implements EventHandler<MouseEvent>{
 
 	@Override
 	public void handle(MouseEvent event) {
+		if(!on) {
+			return;
+		}
 		double diffX = event.getSceneX() - stage.getWidth() / 2.0;
 		double diffY = event.getSceneY() - stage.getHeight() / 2.0;
 		updateAngleX(diffX);

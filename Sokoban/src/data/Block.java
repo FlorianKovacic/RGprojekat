@@ -26,4 +26,6 @@ public abstract class Block {
 		model.getTransforms().add(translate);
 	}
 
+	public abstract boolean pushable();
+
 }

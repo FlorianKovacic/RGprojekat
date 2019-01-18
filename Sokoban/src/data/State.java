@@ -11,11 +11,15 @@ import main.Main;
 
 public class State {
 
+	public static Point3D gridVectorToReal(GridCoordinates vector) {
+		return new Point3D(vector.getX(), - vector.getY(), - vector.getZ()).multiply(Main.SIZE);
+	}
+
 	private int width;
 	private int height;
 	private int length;
 	private Block[][][] blocks;
-	private Point3D initialPlayerPosition;
+	private GridCoordinates initialPlayerPosition;
 
 	public int getWidth() {
 		return width;
@@ -29,19 +33,38 @@ public class State {
 		return length;
 	}
 
-	private Point3D gridToRealCoordinates(GridCoordinates gc) {
-		return new Point3D(gc.getX() - (width - 1)/2.0, -(gc.getY() + 0.5), (length - 1)/2.0 - gc.getZ()).multiply(Main.SIZE);
+	public Point3D gridToRealCoordinates(GridCoordinates gc) {
+		return new Point3D(gc.getX() - (width - 1) / 2.0, -(gc.getY() + 0.5), (length - 1) / 2.0 - gc.getZ()).multiply(Main.SIZE);
 	}
 
-	public Node getBlock(int x, int y, int z) {
-		Block block = blocks[x][y][z];
+	public GridCoordinates realToGridCoordinates(Point3D rc) {
+		int x = (int) (rc.getX() / Main.SIZE + width / 2.0 + 1.0) - 1;
+		int y = (int) (- rc.getY() / Main.SIZE);
+		int z = (int) (- rc.getZ() / Main.SIZE + length / 2.0 + 1.0) - 1;
+		return new GridCoordinates(x, y, z);
+	}
+
+	private Block block(GridCoordinates gc) {
+		return blocks[gc.getX()][gc.getY()][gc.getZ()];
+	}
+
+	private void setBlock(GridCoordinates gc, Block block) {
+		blocks[gc.getX()][gc.getY()][gc.getZ()] = block;
+	}
+
+	public Node getBlock(GridCoordinates gc) {
+		Block block = block(gc);
 		if(block == null) {
 			return null;
 		}
 		return block.getModel();
 	}
 
-	public Point3D getInitialPlayerPosition() {
+	public Point3D getInitialPlayerPositionReal() {
+		return gridToRealCoordinates(initialPlayerPosition);
+	}
+
+	public GridCoordinates getInitialPlayerPositionGrid() {
 		return initialPlayerPosition;
 	}
 
@@ -55,6 +78,7 @@ public class State {
 		try {
 			br = new BufferedReader(new FileReader(inputFile));
 			String dimensionsString = br.readLine();
+			br.readLine();
 			String[] dimensions = dimensionsString.split(" ");
 			width = Integer.parseInt(dimensions[0]);
 			height = Integer.parseInt(dimensions[1]);
@@ -71,12 +95,16 @@ public class State {
 								blocks[k][i][j] = new Wall(current, createTranslate(current));
 							}
 							break;
+							case 'c': {
+								blocks[k][i][j] = new Crate(current, createTranslate(current));
+							}
+							break;
 							case 's': {
 								blocks[k][i][j] = null;
 							}
 							break;
 							case 'b': {
-								initialPlayerPosition = gridToRealCoordinates(current);
+								initialPlayerPosition = current;
 							}
 							break;
 							default: {
@@ -87,6 +115,7 @@ public class State {
 						}
 					}
 				}
+				br.readLine();
 			}
 		}catch(IOException e) {
 			e.printStackTrace();
@@ -99,6 +128,31 @@ public class State {
 				}
 			}
 		}
+	}
+
+	public boolean empty(GridCoordinates gc) {
+		return /*!outOfBounds(gc) && */block(gc) == null;
+	}
+
+	/*public boolean outOfBounds(GridCoordinates gc) {
+		int x = gc.getX();
+		int y = gc.getY();
+		int z = gc.getZ();
+		return x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length;
+	}*/
+
+	public boolean blocking(GridCoordinates gc, GridCoordinates direction) {
+		return /*outOfBounds(gc) || */!empty(gc) && !pushable(gc, direction);
+	}
+
+	public boolean pushable(GridCoordinates gc, GridCoordinates direction) {
+		return /*!outOfBounds(gc) && */direction.oneDimensional() && !empty(gc) && block(gc).pushable() && empty(gc.add(direction));
+	}
+
+	public void updatePush(GridCoordinates from, GridCoordinates to) {
+		Block crate = block(from);
+		setBlock(from, null);
+		setBlock(to, crate);
 	}
 
 }
