@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import javafx.geometry.Point3D;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.transform.Translate;
 import main.Main;
@@ -20,6 +21,7 @@ public class State {
 	private int length;
 	private Block[][][] blocks;
 	private GridCoordinates initialPlayerPosition;
+	private Group blocksGroup;
 
 	public int getWidth() {
 		return width;
@@ -31,6 +33,10 @@ public class State {
 
 	public int getLength() {
 		return length;
+	}
+
+	public Group getBlocks() {
+		return blocksGroup;
 	}
 
 	public Point3D gridToRealCoordinates(GridCoordinates gc) {
@@ -84,23 +90,25 @@ public class State {
 			height = Integer.parseInt(dimensions[1]);
 			length = Integer.parseInt(dimensions[2]);
 			blocks = new Block[width][height][length];
+			blocksGroup = new Group();
 			for(int i = 0; i < height; i++) {
 				for(int j = 0; j < length; j++) {
 					String line = br.readLine();
 					for(int k = 0; k < width; k++) {
 						GridCoordinates current = new GridCoordinates(k, i, j);
 						char type = line.charAt(k);
+						Block currentBlock = null;
 						switch(type) {
 							case 'w': {
-								blocks[k][i][j] = new Wall(current, createTranslate(current));
+								currentBlock = new Wall(current, createTranslate(current));
 							}
 							break;
 							case 'c': {
-								blocks[k][i][j] = new Crate(current, createTranslate(current));
+								currentBlock = new Crate(current, createTranslate(current));
 							}
 							break;
 							case 's': {
-								blocks[k][i][j] = null;
+								currentBlock = null;
 							}
 							break;
 							case 'b': {
@@ -112,6 +120,10 @@ public class State {
 								blocks = null;
 								return;
 							}
+						}
+						if(currentBlock != null) {
+							setBlock(current, currentBlock);
+							blocksGroup.getChildren().add(currentBlock.getModel());
 						}
 					}
 				}
@@ -131,22 +143,15 @@ public class State {
 	}
 
 	public boolean empty(GridCoordinates gc) {
-		return /*!outOfBounds(gc) && */block(gc) == null;
+		return block(gc) == null;
 	}
 
-	/*public boolean outOfBounds(GridCoordinates gc) {
-		int x = gc.getX();
-		int y = gc.getY();
-		int z = gc.getZ();
-		return x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length;
-	}*/
-
 	public boolean blocking(GridCoordinates gc, GridCoordinates direction) {
-		return /*outOfBounds(gc) || */!empty(gc) && !pushable(gc, direction);
+		return !empty(gc) && !pushable(gc, direction);
 	}
 
 	public boolean pushable(GridCoordinates gc, GridCoordinates direction) {
-		return /*!outOfBounds(gc) && */direction.oneDimensional() && !empty(gc) && block(gc).pushable() && empty(gc.add(direction));
+		return direction.oneDimensional() && !empty(gc) && block(gc).pushable() && empty(gc.add(direction));
 	}
 
 	public void updatePush(GridCoordinates from, GridCoordinates to) {
