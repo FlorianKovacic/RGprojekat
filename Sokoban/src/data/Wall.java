@@ -11,7 +11,7 @@ import main.Main;
 public class Wall extends Block {
 
 	private static Color DEFAULT_COLOR = new Color(0.6, 0.3, 0.3, 1.0);
-	private static Image diffuseMap = new Image("file:textures/wall_diffuse.jpg", 512.0, 512.0, false, false);
+	private static Image diffuseMap = new Image("file:textures/wall_diffuse.jpg");
 	private static Material MATERIAL = new PhongMaterial(DEFAULT_COLOR, diffuseMap, null, null, null);
 
 	public Wall(GridCoordinates gridCoordinates, Translate translate) {

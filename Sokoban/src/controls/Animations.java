@@ -37,8 +37,8 @@ public class Animations extends AnimationTimer {
 		return interpolation(points, (x) -> x);
 	}
 
-	private static final long TIME_OF_PUSHING_A_CRATE = 1_000_000_00L;
-	private static final long TIME_OF_CLIMBING_A_BLOCK = 1_000_000_00L;
+	private static final long TIME_OF_PUSHING_A_CRATE = 1_000_000_000L;
+	private static final long TIME_OF_CLIMBING_A_BLOCK = 2_000_000_000L;
 	private static final double SPEED_OF_ADJUSTING_CAMERA_TO_CENTER = 2E-8;
 
 	private static final Function<Double, Double> CLIMBING_HORIZONTAL = linearInterpolation(Arrays.asList(new Point2D(0.0, 0.0), new Point2D(0.2, 0.0), new Point2D(0.4, 0.0), new Point2D(0.6, 0.8), new Point2D(0.8, 0.95), new Point2D(1.0, 1.0)));
