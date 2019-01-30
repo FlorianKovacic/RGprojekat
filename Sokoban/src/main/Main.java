@@ -26,8 +26,11 @@ public class Main extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 
+		state.setStage(stage);
+
 		Group blocks = state.getBlocks();
-		Group root = new Group(blocks);
+		Group destinations = state.getDestinations();
+		Group root = new Group(blocks, destinations);
 
 		Scene scene = new Scene(root, 800, 600, true, SceneAntialiasing.BALANCED);
 		scene.setCursor(Cursor.NONE);

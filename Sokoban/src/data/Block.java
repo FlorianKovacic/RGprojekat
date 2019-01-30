@@ -22,10 +22,17 @@ public abstract class Block {
 		return gridCoordinates;
 	}
 
+	public void setGridCoordinates(GridCoordinates gridCoordinates) {
+		this.gridCoordinates = gridCoordinates;
+	}
+
 	protected void position(Translate translate) {
 		model.getTransforms().add(translate);
 	}
 
 	public abstract boolean pushable();
+
+	//unused
+	public abstract boolean immaterial();
 
 }

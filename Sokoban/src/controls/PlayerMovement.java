@@ -12,7 +12,9 @@ import main.Main;
 
 public class PlayerMovement implements EventHandler<KeyEvent>{
 
-	public static final double EDGE_WIDTH = 1E-1;
+	public static final double EDGE_WIDTH = 0.25;
+
+	public static final double GRAVITY = 4.905;
 
 	private static int signum(double value) {
 		if(value > 0) {
@@ -32,11 +34,19 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 
 	private GridCoordinates cameraPositionGrid;
 	private Translate translation;
+
+	private boolean falling;
+	private long fallingPreviousFrameTime;
+	private double fallingVelocity;
+	private GridCoordinates fallsTo;
+
+	private boolean wantsToClimb;
+
 	private State state;
 	private Animations animations;
 
 	public Point3D currentPositionReal() {
-		return new Point3D(translationX, translationY, translationZ);
+		return new Point3D(translationX, translationY - PlayerControls.CAMERA_OFFSET.getY(), translationZ);
 	}
 
 	public void setTranslationX(double translationX) {
@@ -44,7 +54,7 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 	}
 
 	public void setTranslationY(double translationY) {
-		this.translationY = translationY;
+		this.translationY = translationY + PlayerControls.CAMERA_OFFSET.getY();
 	}
 
 	public void setTranslationZ(double translationZ) {
@@ -57,6 +67,15 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 
 	public void setListeningToKeyboardInput(boolean listeningToKeyboardInput) {
 		this.listeningToKeyboardInput = listeningToKeyboardInput;
+	}
+
+	public void stopListeningToKeyboardInput() {
+		setListeningToKeyboardInput(false);
+		animations.haltMovement();
+	}
+
+	public void continueListeningToKeyboardInput() {
+		setListeningToKeyboardInput(true);
 	}
 
 	public PlayerMovement(Camera camera, GridCoordinates cameraPositionGrid, Point3D cameraPositionReal, State state, Animations animations) {
@@ -94,6 +113,7 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 	}
 
 	private GridCoordinates cameraPositionGrid(Point3D cameraPositionReal) {
+		//System.out.println("Calculating camera grid position from real position: " + cameraPositionReal);
 		int x = cameraPositionGrid.getX();
 		int y = cameraPositionGrid.getY();
 		int z = cameraPositionGrid.getZ();
@@ -103,6 +123,7 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 		if(!withinCurrentSpaceZ(cameraPositionReal)) {
 			z = state.realToGridCoordinates(cameraPositionReal).getZ();
 		}
+		y = state.realToGridCoordinates(cameraPositionReal).getY();
 		return new GridCoordinates(x, y, z);
 	}
 
@@ -118,8 +139,10 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 			return newRelativeX;
 		}
 		if(translationX == centerX + borderLine) {
-			if(state.pushable(neighborX, directionXVector)) {
+			if(state.pushable(neighborX, directionXVector) && !wantsToClimb) {
 				return Double.NaN;
+			} else if(wantsToClimb && state.climbable(neighborX)) {
+				return Double.POSITIVE_INFINITY;
 			}
 		}
 		return borderLine;
@@ -132,13 +155,15 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 		if(absRelativeZ < absBorderLine) {
 			return newRelativeZ;
 		}
-		GridCoordinates neighborZ = cameraPositionGrid.add(directionZVector); 
+		GridCoordinates neighborZ = cameraPositionGrid.add(directionZVector);
 		if(state.empty(neighborZ)) {
 			return newRelativeZ;
 		}
 		if(translationZ == centerZ + borderLine) {
-			if(state.pushable(neighborZ, directionZVector)) {
+			if(state.pushable(neighborZ, directionZVector) && !wantsToClimb) {
 				return Double.NaN;
+			} else if(wantsToClimb && state.climbable(neighborZ)) {
+				return Double.POSITIVE_INFINITY;
 			}
 		}
 		return borderLine;
@@ -158,20 +183,23 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 		GridCoordinates directionZVector = new GridCoordinates(0, 0, - directionZ);
 		double newActualRelativeX = determineActualRelativeX(newRelativeX, centerX, directionX, directionXVector);
 		double newActualRelativeZ = determineActualRelativeZ(newRelativeZ, centerZ, directionZ, directionZVector);
-		GridCoordinates directionOfThePush = null;
-		if(Double.isNaN(newActualRelativeX)) {
-			if(Double.isNaN(newActualRelativeZ)) {
+		GridCoordinates directionOfThePushOrClimb = null;
+		boolean inDirectionX = false;
+		if(!Double.isFinite(newActualRelativeX)) {
+			if(!Double.isFinite(newActualRelativeZ)) {
 				if(newRelativeX > newRelativeZ) {
-					directionOfThePush = directionXVector;
+					directionOfThePushOrClimb = directionXVector;
+					inDirectionX = true;
 				}else {
-					directionOfThePush = directionZVector;
+					directionOfThePushOrClimb = directionZVector;
 				}
 			}else {
-				directionOfThePush = directionXVector;
+				directionOfThePushOrClimb = directionXVector;
+				inDirectionX = true;
 			}
 		}else {
-			if(Double.isNaN(newActualRelativeZ)) {
-				directionOfThePush = directionZVector;
+			if(!Double.isFinite(newActualRelativeZ)) {
+				directionOfThePushOrClimb = directionZVector;
 			}else {
 				double half = Main.SIZE / 2.0;
 				if(Math.abs(newActualRelativeX) > half && Math.abs(newActualRelativeZ) > half) {
@@ -185,14 +213,50 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 				}
 			}
 		}
-		if(directionOfThePush != null) {
-			animations.pushCrate(cameraPositionGrid, directionOfThePush);
+		if(directionOfThePushOrClimb != null) {
+			double newActualRelative = inDirectionX ? newActualRelativeX : newActualRelativeZ;
+			if(Double.isNaN(newActualRelative)) {
+				//System.out.println("Crate being pushed!");
+				animations.pushCrate(cameraPositionGrid, directionOfThePushOrClimb);
+			}else {
+				animations.requestClimbing(cameraPositionGrid, directionOfThePushOrClimb);
+			}
 			return;
 		}
 		translationX = centerX + newActualRelativeX;
 		translationZ = centerZ + newActualRelativeZ;
 		cameraPositionGrid = cameraPositionGrid(new Point3D(translationX, translationY, translationZ));
 		updateTranslation();
+	}
+
+	public void fall(long now) {
+		if(fallsTo == null) {
+			//System.out.println("Current camera position: " + cameraPositionGrid);
+			fallsTo = state.fallsTo(cameraPositionGrid);
+		}
+		if(fallsTo == null) {
+			return;
+		}
+		double floorHeight = state.gridToRealCoordinates(fallsTo).add(PlayerControls.CAMERA_OFFSET).getY();
+		if(!falling) {
+			falling = true;
+			stopListeningToKeyboardInput();
+			fallingPreviousFrameTime = now;
+		}else {
+			long elapsedTime = now - fallingPreviousFrameTime;
+			fallingPreviousFrameTime = now;
+			fallingVelocity += elapsedTime * GRAVITY * 1E-9;
+			translationY += fallingVelocity;
+			if(translationY >= floorHeight) {
+				translationY = floorHeight;
+				falling = false;
+				fallsTo = null;
+				fallingVelocity = 0.0;
+				cameraPositionGrid = cameraPositionGrid(new Point3D(translationX, translationY, translationZ));
+				continueListeningToKeyboardInput();
+			}
+			updateTranslation();
+		}
 	}
 
 	@Override
@@ -220,6 +284,7 @@ public class PlayerMovement implements EventHandler<KeyEvent>{
 				default: {
 				}
 			}
+			wantsToClimb = event.isShiftDown();
 		}
 	}
 

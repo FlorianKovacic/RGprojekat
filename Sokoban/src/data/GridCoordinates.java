@@ -81,4 +81,16 @@ public class GridCoordinates {
 		return numberOfDimensions() == 1;
 	}
 
+	public boolean isXVector() {
+		return equals(projectX());
+	}
+
+	public boolean isZVector() {
+		return equals(projectZ());
+	}
+
+	public int sumOfCoordinates() {
+		return x + y + z;
+	}
+
 }
